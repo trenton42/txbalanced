@@ -5,7 +5,7 @@ import simplejson as json
 from iso8601 import iso8601
 import wac
 
-from balanced import exc
+from txbalanced import exc
 from . import __version__
 
 

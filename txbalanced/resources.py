@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import uritemplate
 import wac
 
-from balanced import exc, config, utils
+from txbalanced import exc, config, utils
 
 
 registry = wac.ResourceRegistry(route_prefix='/')

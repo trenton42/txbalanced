@@ -18,7 +18,7 @@ else:
 
 
 def _get_version():
-    path = os.path.join(PATH_TO_FILE, 'balanced', '__init__.py')
+    path = os.path.join(PATH_TO_FILE, 'txbalanced', '__init__.py')
     version_re = r".*__version__ = '(.*?)'"
     fo = open(path)
     try:
@@ -64,7 +64,7 @@ VERSION = _get_version()
 LONG_DESCRIPTION = _get_long_description()
 
 setup(
-    name='balanced',
+    name='txbalanced',
     version=VERSION,
     url='https://balancedpayments.com/',
     license='BSD',
@@ -72,8 +72,8 @@ setup(
     author_email='dev@balancedpayments.com',
     description='Payments platform for marketplaces',
     long_description=LONG_DESCRIPTION,
-    packages=['balanced'],
-    test_suite='nose.collector',
+    packages=['txbalanced'],
+    test_suite='trial',
     install_requires=parse_requirements('requirements.txt'),
     dependency_links=parse_dependency_links('requirements.txt'),
     classifiers=[
