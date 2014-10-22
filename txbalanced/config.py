@@ -3,7 +3,7 @@ from datetime import datetime
 
 import simplejson as json
 from iso8601 import iso8601
-import wac
+import txwac
 
 from txbalanced import exc
 from . import __version__
@@ -39,7 +39,7 @@ def configure(
     Client.config = Config(root_url, user_agent=user_agent, **kwargs)
 
 
-class Config(wac.Config):
+class Config(txwac.Config):
 
     api_revision = None
 
@@ -51,7 +51,7 @@ default_config = Config(API_ROOT)
 
 # client
 
-class Client(wac.Client):
+class Client(txwac.Client):
 
     config = default_config
 
@@ -77,9 +77,12 @@ class Client(wac.Client):
         return e
 
     def _deserialize(self, response):
-        if response.headers['Content-Type'] != 'application/json':
+        headers = {}
+        for k, v in response.headers.getAllRawHeaders():
+            headers[k] = v[0]
+        if headers['Content-Type'] != 'application/json':
             raise Exception("Unsupported content-type '{}'".format(
-                response.headers['Content-Type']
+                headers['Content-Type']
             ))
         if not response.content:
             return None

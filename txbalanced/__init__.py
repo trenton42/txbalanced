@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 
 __version__ = '1.1.1'
 
-from balanced.config import configure
-from balanced import resources
-from balanced.resources import (
+from txbalanced.config import configure
+from txbalanced import resources
+from txbalanced.resources import (
     Resource, Marketplace, APIKey,
     CardHold, Credit, Debit, Refund, Reversal,
     Transaction, BankAccount, Card, Dispute,
@@ -12,7 +12,7 @@ from balanced.resources import (
     BankAccountVerification, Customer, Order,
     ExternalAccount
 )
-from balanced import exc
+from txbalanced import exc
 
 
 __all__ = [

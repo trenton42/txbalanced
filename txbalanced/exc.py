@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import httplib
 
-import wac
+import txwac
 
 
 class BalancedError(Exception):
@@ -37,7 +37,7 @@ def convert_error(ex):
     return HTTPError.from_response(**ex.response.data)(ex)
 
 
-class HTTPError(BalancedError, wac.Error):
+class HTTPError(BalancedError, txwac.Error):
 
     class __metaclass__(type):
 
@@ -52,7 +52,7 @@ class HTTPError(BalancedError, wac.Error):
             return cls
 
     def __init__(self, requests_ex):
-        super(wac.Error, self).__init__(requests_ex)
+        super(txwac.Error, self).__init__(requests_ex)
         self.status_code = requests_ex.response.status_code
         data = getattr(requests_ex.response, 'data', {})
         for k, v in data.get('errors', [{}])[0].iteritems():

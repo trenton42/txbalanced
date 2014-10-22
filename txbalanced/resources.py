@@ -1,22 +1,24 @@
 from __future__ import unicode_literals
 
 import uritemplate
-import wac
+import txwac
+
+from twisted.internet import defer
 
 from txbalanced import exc, config, utils
 
 
-registry = wac.ResourceRegistry(route_prefix='/')
+registry = txwac.ResourceRegistry(route_prefix='/')
 
 
-class JSONSchemaCollection(wac.ResourceCollection):
+class JSONSchemaCollection(txwac.ResourceCollection):
 
     @property
     def href(self):
         return self.uri
 
 
-class ObjectifyMixin(wac._ObjectifyMixin):
+class ObjectifyMixin(txwac._ObjectifyMixin):
 
     def _objectify(self, resource_cls, **fields):
         # setting values locally, not from server
@@ -30,7 +32,7 @@ class ObjectifyMixin(wac._ObjectifyMixin):
         payload = self._hydrate(payload)
         meta = payload.pop('meta', None)
 
-        if isinstance(self, wac.Page):
+        if isinstance(self, txwac.Page):
             for key, value in meta.iteritems():
                 setattr(self, key, value)
 
@@ -70,7 +72,7 @@ class ObjectifyMixin(wac._ObjectifyMixin):
             variables = uritemplate.variables(uri)
             # marketplaces.card_holds
             collection, resource_type = key.split('.')
-            item_attribute = item_property = resource_type
+            item_property = resource_type
             # if parsed from uri then retrieve. e.g. customer.id
             for item in payload[collection]:
                 # find type, fallback to Resource if we can't determine the
@@ -125,7 +127,7 @@ class ObjectifyMixin(wac._ObjectifyMixin):
         return payload
 
 
-class JSONSchemaPage(wac.Page, ObjectifyMixin):
+class JSONSchemaPage(txwac.Page, ObjectifyMixin):
 
     @property
     def items(self):
@@ -146,7 +148,7 @@ class JSONSchemaPage(wac.Page, ObjectifyMixin):
             return []
 
 
-class JSONSchemaResource(wac.Resource, ObjectifyMixin):
+class JSONSchemaResource(txwac.Resource, ObjectifyMixin):
 
     collection_cls = JSONSchemaCollection
 
@@ -174,16 +176,18 @@ class JSONSchemaResource(wac.Resource, ObjectifyMixin):
             if not isinstance(v, (cls.collection_cls))
         )
 
-        resp = method(href, data=attrs)
+        def _after_save(resp):
+            instance = self.__class__(**resp.data)
+            self.__dict__.clear()
+            self.__dict__.update(instance.__dict__)
 
-        instance = self.__class__(**resp.data)
-        self.__dict__.clear()
-        self.__dict__.update(instance.__dict__)
-
-        return self
+            return self
+        d = method(href, data=attrs)
+        d.addCallback(_after_save)
+        return d
 
     def delete(self):
-        self.client.delete(self.href)
+        return self.client.delete(self.href)
 
     def __dir__(self):
         return self.__dict__.keys()
@@ -210,7 +214,7 @@ class Resource(JSONSchemaResource):
 
     registry = registry
 
-    uri_gen = wac.URIGen('/resources', '{resource}')
+    uri_gen = txwac.URIGen('/resources', '{resource}')
 
     def unstore(self):
         return self.delete()
@@ -225,13 +229,16 @@ class Resource(JSONSchemaResource):
             # hackety hack hax
             # resource is an abstract type, we shouldn't have it comeing back itself
             # instead we need to figure out the type based off the api response
-            resp = cls.client.get(href)
-            resource = [
-                k for k in resp.data.keys() if k != 'links' and k != 'meta'
-            ]
-            if resource:
-                return Resource.registry.get(resource[0], cls)(**resp.data)
-            return cls(**resp.data)
+            def _after_get(resp):
+                resource = [
+                    k for k in resp.data.keys() if k != 'links' and k != 'meta'
+                ]
+                if resource:
+                    return Resource.registry.get(resource[0], cls)(**resp.data)
+                return cls(**resp.data)
+            d = cls.client.get(href)
+            d.addCallback(_after_get)
+            return d
         return super(Resource, cls).get(href)
 
 
@@ -252,7 +259,7 @@ class Marketplace(Resource):
 
     type = 'marketplaces'
 
-    uri_gen = wac.URIGen('/marketplaces', '{marketplace}')
+    uri_gen = txwac.URIGen('/marketplaces', '{marketplace}')
 
     @utils.classproperty
     def mine(cls):
@@ -275,14 +282,14 @@ class APIKey(Resource):
     """
     type = 'api_keys'
 
-    uri_gen = wac.URIGen('/api_keys', '{api_key}')
+    uri_gen = txwac.URIGen('/api_keys', '{api_key}')
 
 
 class CardHold(Resource):
 
     type = 'card_holds'
 
-    uri_gen = wac.URIGen('/card_holds', '{card_hold}')
+    uri_gen = txwac.URIGen('/card_holds', '{card_hold}')
 
     def cancel(self):
         self.is_void = True
@@ -318,7 +325,7 @@ class Credit(Transaction):
 
     type = 'credits'
 
-    uri_gen = wac.URIGen('/credits', '{credit}')
+    uri_gen = txwac.URIGen('/credits', '{credit}')
 
     def reverse(self, **kwargs):
         """
@@ -346,7 +353,7 @@ class Debit(Transaction):
 
     type = 'debits'
 
-    uri_gen = wac.URIGen('/debits', '{debit}')
+    uri_gen = txwac.URIGen('/debits', '{debit}')
 
     def refund(self, **kwargs):
         """
@@ -372,7 +379,7 @@ class Refund(Transaction):
 
     type = 'refunds'
 
-    uri_gen = wac.URIGen('/refunds', '{refund}')
+    uri_gen = txwac.URIGen('/refunds', '{refund}')
 
 
 class Reversal(Transaction):
@@ -385,7 +392,7 @@ class Reversal(Transaction):
 
     type = 'reversals'
 
-    uri_gen = wac.URIGen('/reversals', '{reversal}')
+    uri_gen = txwac.URIGen('/reversals', '{reversal}')
 
 
 class FundingInstrument(Resource):
@@ -403,7 +410,7 @@ class FundingInstrument(Resource):
         except AttributeError:
             self.links = {}
         self.links['customer'] = utils.extract_href_from_object(customer)
-        self.save()
+        return self.save()
 
     def debit(self, amount, **kwargs):
         """
@@ -427,7 +434,7 @@ class FundingInstrument(Resource):
 
         :rtype: Credit
         """
- 
+
         if not hasattr(self, 'credits'):
             raise exc.FundingSourceNotCreditable()
         return Credit(
@@ -445,7 +452,7 @@ class BankAccount(FundingInstrument):
 
     type = 'bank_accounts'
 
-    uri_gen = wac.URIGen('/bank_accounts', '{bank_account}')
+    uri_gen = txwac.URIGen('/bank_accounts', '{bank_account}')
 
     def verify(self):
         """
@@ -480,7 +487,7 @@ class Card(FundingInstrument):
 
     type = 'cards'
 
-    uri_gen = wac.URIGen('/cards', '{card}')
+    uri_gen = txwac.URIGen('/cards', '{card}')
 
     def hold(self, amount, **kwargs):
         return CardHold(
@@ -500,7 +507,7 @@ class Customer(Resource):
 
     type = 'customers'
 
-    uri_gen = wac.URIGen('/customers', '{customer}')
+    uri_gen = txwac.URIGen('/customers', '{customer}')
 
     def create_order(self, **kwargs):
         return Order(href=self.orders.href, **kwargs).save()
@@ -517,7 +524,7 @@ class Order(Resource):
 
     type = 'orders'
 
-    uri_gen = wac.URIGen('/orders', '{order}')
+    uri_gen = txwac.URIGen('/orders', '{order}')
 
     def credit_to(self, destination, amount, **kwargs):
         return destination.credit(order=self.href,
@@ -538,7 +545,7 @@ class Callback(Resource):
 
     type = 'callbacks'
 
-    uri_gen = wac.URIGen('/callbacks', '{callback}')
+    uri_gen = txwac.URIGen('/callbacks', '{callback}')
 
 
 class Dispute(Resource):
@@ -548,7 +555,7 @@ class Dispute(Resource):
     """
     type = 'disputes'
 
-    uri_gen = wac.URIGen('/disputes', '{dispute}')
+    uri_gen = txwac.URIGen('/disputes', '{dispute}')
 
 
 class Event(Resource):
@@ -561,7 +568,7 @@ class Event(Resource):
 
     type = 'events'
 
-    uri_gen = wac.URIGen('/events', '{event}')
+    uri_gen = txwac.URIGen('/events', '{event}')
 
 
 class EventCallback(Resource):
@@ -589,4 +596,4 @@ class ExternalAccount(FundingInstrument):
 
     type = 'external_accounts'
 
-    uri_gen = wac.URIGen('/external_accounts', '{external_account}')
+    uri_gen = txwac.URIGen('/external_accounts', '{external_account}')
