@@ -53,7 +53,7 @@ class HTTPError(BalancedError, txwac.Error):
 
     def __init__(self, requests_ex):
         super(txwac.Error, self).__init__(requests_ex)
-        self.status_code = requests_ex.response.status_code
+        self.code = requests_ex.response.code
         data = getattr(requests_ex.response, 'data', {})
         for k, v in data.get('errors', [{}])[0].iteritems():
             setattr(self, k, v)
@@ -61,13 +61,13 @@ class HTTPError(BalancedError, txwac.Error):
     @classmethod
     def format_message(cls, requests_ex):
         data = getattr(requests_ex.response, 'data', {})
-        status = httplib.responses[requests_ex.response.status_code]
+        status = httplib.responses[requests_ex.response.code]
         error = data['errors'][0]
         status = error.pop('status', status)
-        status_code = error.pop('status_code',
-                                requests_ex.response.status_code)
+        code = error.pop('code',
+                         requests_ex.response.code)
         desc = error.pop('description', None)
-        message = ': '.join(str(v) for v in [status, status_code, desc] if v)
+        message = ': '.join(str(v) for v in [status, code, desc] if v)
         return message
 
     @classmethod
