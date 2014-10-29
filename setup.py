@@ -70,7 +70,7 @@ setup(
     license='BSD',
     author='Balanced',
     author_email='dev@balancedpayments.com',
-    description='Payments platform for marketplaces',
+    description='Payments platform for marketplaces (twisted fork)',
     long_description=LONG_DESCRIPTION,
     packages=['txbalanced'],
     test_suite='trial',
