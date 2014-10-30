@@ -3,8 +3,6 @@ from __future__ import unicode_literals
 import uritemplate
 import txwac
 
-from twisted.internet import defer
-
 from txbalanced import exc, config, utils
 
 

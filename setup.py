@@ -66,7 +66,7 @@ LONG_DESCRIPTION = _get_long_description()
 setup(
     name='txbalanced',
     version=VERSION,
-    url='https://balancedpayments.com/',
+    url='https://github.com/trenton42/txbalanced',
     license='BSD',
     author='Balanced',
     author_email='dev@balancedpayments.com',
