@@ -16,7 +16,6 @@ else:
     setup = setuptools.setup
 
 
-
 def _get_version():
     path = os.path.join(PATH_TO_FILE, 'txbalanced', '__init__.py')
     version_re = r".*__version__ = '(.*?)'"

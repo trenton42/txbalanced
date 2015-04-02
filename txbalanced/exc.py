@@ -32,7 +32,7 @@ class FundingSourceNotCreditable(Exception):
 
 
 def convert_error(ex):
-    if not hasattr(ex.response, 'data'):
+    if not hasattr(ex.response, 'data') or not ex.response.data:
         return ex
     return HTTPError.from_response(**ex.response.data)(ex)
 
